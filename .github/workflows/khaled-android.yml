@@ -1,4 +1,4 @@
-name: Build Khaled Star Hero APK
+name: Build Khaled Star Hero (Godot 4.4.1)
 on:
   workflow_dispatch:
   push:
@@ -7,38 +7,35 @@ on:
       - 'khaled-game/**'
       - '.github/workflows/khaled-android.yml'
 jobs:
-  android:
+  build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: khaled-game
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Check original Godot project
+        run: |
+          test -f khaled-game/project.godot
+          test -f khaled-game/export_presets.cfg
+      - name: Build Android APK with Godot
+        uses: chickensoft-games/setup-godot@v2
         with:
-          node-version: '22'
+          version: 4.4.1
+          use-dotnet: false
+          include-templates: true
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: '17'
       - uses: android-actions/setup-android@v3
-      - name: Check game source
+      - name: Import project assets
+        working-directory: khaled-game
+        run: godot --headless --editor --import --quit
+      - name: Export Android
+        working-directory: khaled-game
         run: |
-          test -f package.json || { echo 'Missing khaled-game/package.json'; exit 1; }
-          test -f www/index.html || { echo 'Missing khaled-game/www/index.html'; exit 1; }
-      - name: Install Capacitor
-        run: npm install
-      - name: Prepare Android project
-        run: |
-          if [ ! -d android ]; then npx cap add android; fi
-          npx cap sync android
-      - name: Build debug APK
-        run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug
+          mkdir -p build
+          godot --headless --export-debug "Android" build/KhaledStarHero.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: Khaled-Star-Hero-debug-APK
-          path: khaled-game/android/app/build/outputs/apk/debug/*.apk
+          name: Khaled-Star-Hero-APK
+          path: khaled-game/build/KhaledStarHero.apk
           if-no-files-found: error
