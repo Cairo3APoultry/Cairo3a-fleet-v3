@@ -1,0 +1,65 @@
+name: Build Khaled Star Hero APK
+
+on:
+  push:
+    paths:
+      - "android-game/KhaledStarHero-source.zip"
+      - ".github/workflows/khaled-star-hero-android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-android-apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: ""
+
+      - name: Install Android export requirements
+        run: sdkmanager --install "platform-tools" "build-tools;35.0.1" "platforms;android-35"
+
+      - name: Install Godot 4.4.1 and export templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_linux.x86_64.zip" -o /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot-bin
+          sudo install -m 0755 /tmp/godot-bin/Godot_v4.4.1-stable_linux.x86_64 /usr/local/bin/godot
+          curl -fsSL "https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_export_templates.tpz" -o /tmp/godot-templates.tpz
+          mkdir -p "$HOME/.local/share/godot/export_templates/4.4.1.stable"
+          unzip -q /tmp/godot-templates.tpz -d /tmp/godot-template-files
+          cp -a /tmp/godot-template-files/templates/. "$HOME/.local/share/godot/export_templates/4.4.1.stable/"
+          godot --version
+
+      - name: Import game assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/khaled-game"
+          unzip -q android-game/KhaledStarHero-source.zip -d "$RUNNER_TEMP/khaled-game"
+          echo "PROJECT_DIR=$RUNNER_TEMP/khaled-game/KhaledStarHero-project" >> "$GITHUB_ENV"
+          godot --headless --editor --path "$RUNNER_TEMP/khaled-game/KhaledStarHero-project" --import --quit
+
+      - name: Export installable APK
+        run: godot --headless --path "$PROJECT_DIR" --export-debug "Android" "$RUNNER_TEMP/KhaledStarHero.apk"
+
+      - name: Save APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: KhaledStarHero-Android-APK
+          path: ${{ runner.temp }}/KhaledStarHero.apk
+          if-no-files-found: error
+          retention-days: 14
