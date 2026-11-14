@@ -1,0 +1,44 @@
+name: Build Khaled Star Hero APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [khaled-star-hero-android]
+    paths:
+      - 'khaled-game/**'
+      - '.github/workflows/khaled-android.yml'
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: khaled-game
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - name: Check game source
+        run: |
+          test -f package.json || { echo 'Missing khaled-game/package.json'; exit 1; }
+          test -f www/index.html || { echo 'Missing khaled-game/www/index.html'; exit 1; }
+      - name: Install Capacitor
+        run: npm install
+      - name: Prepare Android project
+        run: |
+          if [ ! -d android ]; then npx cap add android; fi
+          npx cap sync android
+      - name: Build debug APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Khaled-Star-Hero-debug-APK
+          path: khaled-game/android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
