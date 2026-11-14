@@ -1,0 +1,6 @@
+{
+  "appId": "com.khaled.starhero",
+  "appName": "خالد النجم الطائر",
+  "webDir": "www",
+  "server": { "androidScheme": "https" }
+}
